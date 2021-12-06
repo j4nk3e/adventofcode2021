@@ -4,10 +4,7 @@ use std::io::{self, BufRead};
 fn main() {
     let stdin = io::stdin();
     let mut lines = stdin.lock().lines();
-    let mut fish: VecDeque<usize> = VecDeque::with_capacity(9);
-    for _ in 0..9 {
-        fish.push_back(0);
-    }
+    let mut fish: VecDeque<usize> = VecDeque::from(vec![0; 9]);
     while let Some(line) = lines.next() {
         let line = line.unwrap();
         let numbers: Vec<usize> = line.split(",").map(|s| s.parse().unwrap()).collect();
