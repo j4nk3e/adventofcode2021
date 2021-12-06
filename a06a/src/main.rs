@@ -5,21 +5,20 @@ fn main() {
     let stdin = io::stdin();
     let mut lines = stdin.lock().lines();
     let mut fish: VecDeque<usize> = VecDeque::from(vec![0; 9]);
-    while let Some(line) = lines.next() {
-        let line = line.unwrap();
-        let numbers: Vec<usize> = line.split(",").map(|s| s.parse().unwrap()).collect();
-
-        for n in numbers.iter() {
-            let q = fish.get_mut(*n).unwrap();
-            *q = *q + 1;
-        }
-        for _ in 0..256 {
-            let n = fish.pop_front().unwrap();
-            fish.push_back(n);
-            let q = fish.get_mut(6).unwrap();
-            *q += n;
-        }
-        let sum: usize = fish.iter().sum();
-        println!("{}", sum);
+    for n in lines
+        .next()
+        .unwrap()
+        .unwrap()
+        .split(",")
+        .map(|s| s.parse().unwrap())
+        .collect::<Vec<usize>>()
+    {
+        *fish.get_mut(n).unwrap() += 1;
     }
+    for _ in 0..256 {
+        *fish.get_mut(7).unwrap() += *fish.get(0).unwrap();
+        fish.rotate_left(1);
+    }
+    let sum: usize = fish.iter().sum();
+    println!("{}", sum);
 }
