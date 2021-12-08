@@ -1,4 +1,4 @@
-use regex::Regex;
+use bitintr::Popcnt;
 use std::{
     collections::HashMap,
     io::{self, BufRead},
@@ -9,18 +9,16 @@ fn main() {
     let lines = stdin.lock().lines();
     let mut count = 0;
     for line in lines {
-        let re = Regex::new(r"^(.*) \| (.*)$").unwrap();
-        let line = line.unwrap();
-        let groups = re.captures(line.trim()).unwrap();
+        let l = line.unwrap();
+        let mut groups = l.split(" | ");
         let mut vars: Vec<u8> = groups
-            .get(1)
+            .next()
             .unwrap()
-            .as_str()
             .split_whitespace()
             .map(|s| seg_to_int(s))
             .collect();
         let mut mapping: HashMap<u8, u8> = HashMap::new();
-        vars.sort_by_key(|n| bit_count(*n));
+        vars.sort_by_key(|n| n.popcnt());
         mapping.insert(1, vars.remove(0));
         mapping.insert(7, vars.remove(0));
         mapping.insert(4, vars.remove(0));
@@ -28,31 +26,30 @@ fn main() {
         let p = vars
             .iter()
             .skip(3)
-            .position(|n| bit_count(mapping[&7] & *n) != 3)
+            .position(|n| (mapping[&7] & *n).popcnt() != 3)
             .unwrap();
         mapping.insert(6, vars.remove(p + 3));
         let p = vars
             .iter()
-            .position(|n| bit_count((mapping[&7] ^ *n) & *n) == 2)
+            .position(|n| ((mapping[&7] ^ *n) & *n).popcnt() == 2)
             .unwrap();
         mapping.insert(3, vars.remove(p));
         let p = vars
             .iter()
-            .position(|n| bit_count((mapping[&6] ^ *n) & mapping[&6]) == 1)
+            .position(|n| ((mapping[&6] ^ *n) & mapping[&6]).popcnt() == 1)
             .unwrap();
         mapping.insert(5, vars.remove(p));
         mapping.insert(2, vars.remove(0));
         let p = vars
             .iter()
-            .position(|n| bit_count(mapping[&4] | *n) == 7)
+            .position(|n| (mapping[&4] | *n).popcnt() == 7)
             .unwrap();
         mapping.insert(0, vars.remove(p));
         mapping.insert(9, vars.remove(0));
 
         let nums: Vec<u8> = groups
-            .get(2)
+            .next()
             .unwrap()
-            .as_str()
             .split_whitespace()
             .map(|s| seg_to_int(s))
             .collect();
@@ -74,14 +71,6 @@ fn seg_to_int(seg: &str) -> u8 {
         if seg.contains(char) {
             i += 1;
         }
-    }
-    return i;
-}
-
-fn bit_count(val: u8) -> u8 {
-    let mut i = 0u8;
-    for n in 0..8 {
-        i += (val >> n) & 1;
     }
     return i;
 }
