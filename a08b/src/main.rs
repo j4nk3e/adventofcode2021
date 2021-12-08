@@ -66,11 +66,8 @@ fn main() {
 
 fn seg_to_int(seg: &str) -> u8 {
     let mut i = 0u8;
-    for char in "abcdefg".chars() {
-        i = i << 1;
-        if seg.contains(char) {
-            i += 1;
-        }
+    for char in seg.as_bytes() {
+        i |= 1 << char - b'a';
     }
     return i;
 }
