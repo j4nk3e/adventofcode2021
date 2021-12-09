@@ -21,17 +21,14 @@ fn main() {
         y += 1;
     }
     let mut basins: Vec<usize> = Vec::new();
-    let mut mf = &mut field;
-    while !mf.is_empty() {
-        let mut keys = mf.keys();
-        let k = keys.next().unwrap().clone();
-        let f = mf.remove(&k).unwrap();
+    while !field.is_empty() {
+        let k = field.keys().next().unwrap().clone();
+        let f = field.remove(&k).unwrap();
         if f == 9 {
             continue;
         }
-        let res = sum_adjacent(mf, k);
-        basins.push(res.0);
-        mf = res.1;
+        let res = sum_adjacent(&mut field, k);
+        basins.push(res);
     }
     basins.sort();
     basins.reverse();
@@ -40,10 +37,7 @@ fn main() {
     println!("{}", c);
 }
 
-fn sum_adjacent(
-    field: &mut HashMap<(isize, isize), u8>,
-    pos: (isize, isize),
-) -> (usize, &mut HashMap<(isize, isize), u8>) {
+fn sum_adjacent(field: &mut HashMap<(isize, isize), u8>, pos: (isize, isize)) -> usize {
     let mut sum = 1;
     let mut adj = Vec::new();
     for z in [
@@ -60,11 +54,9 @@ fn sum_adjacent(
             _ => adj.push(z),
         }
     }
-    let mut f = field;
+    let f = field;
     for p in adj {
-        let c = sum_adjacent(f, p);
-        sum += c.0;
-        f = c.1;
+        sum += sum_adjacent(f, p);
     }
-    return (sum, f);
+    return sum;
 }
