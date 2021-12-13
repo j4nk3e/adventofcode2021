@@ -1,3 +1,4 @@
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{
     collections::HashMap,
     io::{self, BufRead},
@@ -27,14 +28,17 @@ fn find_paths(caves: &HashMap<String, Vec<String>>, path: String, pos: String, t
     if pos == "end" {
         return 1;
     }
-    let mut count = 0;
-    for p in caves.get(&pos).unwrap().iter() {
-        let prev = p.chars().next().unwrap().is_lowercase() && path.contains(p);
-        if prev && twice {
-            continue;
-        }
-        let new_path = path.to_owned() + "-" + p;
-        count += find_paths(caves, new_path, p.to_string(), prev || twice);
-    }
-    return count;
+    return caves
+        .get(&pos)
+        .unwrap()
+        .par_iter()
+        .map(|p| {
+            let prev = p.chars().next().unwrap().is_lowercase() && path.contains(p);
+            if prev && twice {
+                return 0;
+            }
+            let new_path = path.to_owned() + "-" + p;
+            return find_paths(caves, new_path, p.to_string(), prev || twice);
+        })
+        .sum();
 }
