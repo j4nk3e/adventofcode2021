@@ -15,10 +15,10 @@ fn main() {
             continue;
         }
         if !folds {
-            let coords: Vec<u32> = l.split(",").map(|n| n.parse().unwrap()).collect();
+            let coords: Vec<u32> = l.split(',').map(|n| n.parse().unwrap()).collect();
             dots.insert((coords[0], coords[1]));
         } else {
-            let fold: Vec<&str> = l.split_whitespace().last().unwrap().split("=").collect();
+            let fold: Vec<&str> = l.split_whitespace().last().unwrap().split('=').collect();
             let axis = fold[0];
             let pos = fold[1].parse().unwrap();
             dots = dots
@@ -28,12 +28,10 @@ fn main() {
                         if *x > pos {
                             return (2 * pos - x, *y);
                         }
-                    } else {
-                        if *y > pos {
-                            return (*x, 2 * pos - y);
-                        }
+                    } else if *y > pos {
+                        return (*x, 2 * pos - y);
                     }
-                    return (*x, *y);
+                    (*x, *y)
                 })
                 .collect();
         }
@@ -52,6 +50,6 @@ fn main() {
                 print!(" ")
             }
         }
-        println!("")
+        println!()
     }
 }
