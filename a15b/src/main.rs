@@ -26,9 +26,36 @@ fn main() {
         }
         h += 1;
     }
-    for (p, c) in grid.iter() {
-        c.borrow_mut().heur = w - p.0 + h - p.1;
+    let mut monster_grid: HashMap<(i32, i32), RefCell<Node>> = HashMap::new();
+    for yi in 0..5 {
+        for xi in 0..5 {
+            for py in 0..h {
+                for px in 0..w {
+                    let p = grid.get(&(px, py)).unwrap();
+                    let x = px + xi * w;
+                    let y = py + yi * h;
+                    monster_grid.insert(
+                        (x, y),
+                        RefCell::new(Node {
+                            cost: (p.borrow().cost + yi + xi - 1) % 9 + 1,
+                            dist: None,
+                            heur: (w * 5 - x + h * 5 - y) * 1,
+                            closed: false,
+                        }),
+                    );
+                }
+            }
+        }
     }
+    w *= 5;
+    h *= 5;
+    grid = monster_grid;
+    // for y in 0..h {
+    //     for x in 0..w {
+    //         print!("{}", grid.get(&(x, y)).unwrap().borrow().cost);
+    //     }
+    //     println!();
+    // }
 
     let start = grid.get(&(0, 0)).unwrap();
     {
