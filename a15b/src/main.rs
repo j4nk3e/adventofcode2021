@@ -1,13 +1,13 @@
 use std::{
     cell::RefCell,
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     io::{self, BufRead},
 };
 
 fn main() {
     let stdin = io::stdin();
     let lines = stdin.lock().lines();
-    let mut grid: HashMap<(i32, i32), RefCell<Node>> = HashMap::new();
+    let mut grid: HashMap<(isize, isize), RefCell<Node>> = HashMap::new();
     let mut h = 0;
     let mut w = 0;
     for line in lines {
@@ -16,9 +16,10 @@ fn main() {
         let row = l.chars().map(|c| c.to_digit(10).unwrap());
         for c in row {
             let n = RefCell::new(Node {
-                cost: c as i32,
+                x: w,
+                y: h,
+                cost: c as isize,
                 dist: None,
-                heur: 1,
                 closed: false,
             });
             grid.insert((w, h), n);
@@ -26,7 +27,7 @@ fn main() {
         }
         h += 1;
     }
-    let mut monster_grid: HashMap<(i32, i32), RefCell<Node>> = HashMap::new();
+    let mut monster_grid: HashMap<(isize, isize), RefCell<Node>> = HashMap::new();
     for yi in 0..5 {
         for xi in 0..5 {
             for py in 0..h {
@@ -37,9 +38,10 @@ fn main() {
                     monster_grid.insert(
                         (x, y),
                         RefCell::new(Node {
+                            x,
+                            y,
                             cost: (p.borrow().cost + yi + xi - 1) % 9 + 1,
                             dist: None,
-                            heur: (w * 5 - x + h * 5 - y) * 1,
                             closed: false,
                         }),
                     );
@@ -50,74 +52,75 @@ fn main() {
     w *= 5;
     h *= 5;
     grid = monster_grid;
-    // for y in 0..h {
-    //     for x in 0..w {
-    //         print!("{}", grid.get(&(x, y)).unwrap().borrow().cost);
-    //     }
-    //     println!();
-    // }
 
     let start = grid.get(&(0, 0)).unwrap();
     {
         let mut start = start.borrow_mut();
         start.dist = Some(0);
     }
-    let mut current: HashMap<(i32, i32), &RefCell<Node>> = HashMap::new();
-    current.insert((0, 0), start);
+    let mut buckets: BTreeMap<isize, Vec<&RefCell<Node>>> = BTreeMap::new();
+    buckets.insert(0, vec![start; 1]);
     loop {
-        let (p, best) = current
-            .iter()
-            .filter(|&(_, c)| !c.borrow().closed && c.borrow().dist != None)
-            .min_by_key(|&(_, c)| c.borrow().dist.unwrap() + c.borrow().heur)
-            .unwrap();
-        best.borrow_mut().closed = true;
-        let mut next: HashMap<(i32, i32), &RefCell<Node>> = HashMap::new();
+        let best = buckets
+            .iter_mut()
+            .filter(|b| !b.1.is_empty())
+            .next()
+            .unwrap()
+            .1
+            .pop();
+        buckets.retain(|_, v| !v.is_empty());
+        {
+            let mut p = best.unwrap().borrow_mut();
+            p.closed = true;
+        }
+        let p = best.unwrap().borrow();
+        let mut next: Vec<&RefCell<Node>> = Vec::new();
         for adj_best in [
-            (p.0, p.1 - 1),
-            (p.0, p.1 + 1),
-            (p.0 + 1, p.1),
-            (p.0 - 1, p.1),
+            (p.x, p.y - 1),
+            (p.x, p.y + 1),
+            (p.x + 1, p.y),
+            (p.x - 1, p.y),
         ]
         .iter()
         {
             if let Some(exists) = grid.get(adj_best) {
-                next.insert(*adj_best, exists);
+                next.push(exists);
             }
         }
-        for (p, c) in next.iter() {
+        for c in next.iter() {
             {
-                let mut e = c.borrow_mut();
-                for np in [
-                    (p.0, p.1 - 1),
-                    (p.0, p.1 + 1),
-                    (p.0 + 1, p.1),
-                    (p.0 - 1, p.1),
-                ]
-                .iter()
-                {
-                    if let Some(back) = grid.get(np) {
-                        let b = back.borrow();
-                        if let Some(dist) = b.dist {
-                            e.dist = Some(match e.dist {
-                                Some(d) => i32::min(d, dist + e.cost),
-                                None => dist + e.cost,
-                            })
-                        }
-                    }
+                let mut next = c.borrow_mut();
+                if next.closed {
+                    continue;
                 }
-                if p.0 == w - 1 && p.1 == h - 1 {
-                    println!("{}", e.dist.unwrap());
+                let dist = p.dist.unwrap();
+                let d = match next.dist {
+                    Some(d) => {
+                        let q = isize::min(d, dist + next.cost);
+                        buckets
+                            .entry(d)
+                            .and_modify(|e| e.retain(|df| df.try_borrow().is_ok()));
+                        q
+                    }
+                    None => dist + next.cost,
+                };
+
+                next.dist = Some(d);
+                buckets.entry(d).or_insert(Vec::new()).push(c);
+
+                if next.x == w - 1 && next.y == h - 1 {
+                    println!("{}", next.dist.unwrap());
                     return;
                 }
             }
         }
-        current.extend(next.into_iter());
     }
 }
 
 struct Node {
-    dist: Option<i32>,
-    cost: i32,
-    heur: i32,
+    x: isize,
+    y: isize,
+    dist: Option<isize>,
+    cost: isize,
     closed: bool,
 }
