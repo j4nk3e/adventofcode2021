@@ -1,6 +1,5 @@
-use crate::Part::N;
-use crate::Part::P;
-use std::panic;
+use crate::Pair::N;
+use crate::Pair::P;
 use std::{
     io::{self, BufRead},
     iter::Peekable,
@@ -31,97 +30,56 @@ fn main() {
     println!("{}", max);
 }
 
-enum Part {
-    N(usize),
-    P(Box<Pair>),
-}
-
 #[derive(Clone)]
-struct Pair {
-    l: Part,
-    r: Part,
-}
-
-impl Clone for Part {
-    fn clone(&self) -> Part {
-        match self {
-            N(usize) => N(*usize),
-            P(b) => P(b.clone()),
-        }
-    }
+enum Pair {
+    N(usize),
+    P { l: Box<Pair>, r: Box<Pair> },
 }
 
 impl Pair {
-    fn to_string(&self) -> String {
-        let l = match &self.l {
-            N(i) => i.to_string(),
-            P(b) => b.to_string(),
-        };
-        let r = match &self.r {
-            N(i) => i.to_string(),
-            P(b) => b.to_string(),
-        };
-        return format!("[{},{}]", l, r);
-    }
-
     fn magnitude(&self) -> usize {
-        let ml = match &self.l {
-            N(l) => *l,
-            P(r) => r.as_ref().magnitude(),
-        };
-        let mr = match &self.r {
-            N(l) => *l,
-            P(r) => r.as_ref().magnitude(),
-        };
-        return ml * 3 + mr * 2;
+        match self {
+            N(i) => *i,
+            P { l, r } => l.magnitude() * 3 + r.magnitude() * 2,
+        }
     }
 
     fn parse(s: &mut Peekable<Chars>) -> Pair {
         s.next().expect("missing [");
         let c = s.peek().unwrap();
         let l = match c {
-            '[' => P(Box::new(Pair::parse(s))),
+            '[' => Pair::parse(s),
             _ => N(s.next().unwrap().to_digit(10).unwrap() as usize),
         };
         s.next().expect("missing ,");
         let c = s.peek().unwrap();
         let r = match c {
-            '[' => P(Box::new(Pair::parse(s))),
+            '[' => Pair::parse(s),
             _ => N(s.next().unwrap().to_digit(10).unwrap() as usize),
         };
         s.next().expect("missing ]");
-        Pair { l, r }
+        P {
+            l: Box::new(l),
+            r: Box::new(r),
+        }
     }
 
-    fn depth_max(&self) -> usize {
-        let d = self.depth();
-        return usize::max(d.0, d.1);
-    }
-
-    fn depth(&self) -> (usize, usize) {
-        let dl = match &self.l {
-            N(_) => 1,
-            P(b) => b.depth_max() + 1,
-        };
-        let dr = match &self.r {
-            N(_) => 1,
-            P(b) => b.depth_max() + 1,
-        };
-        (dl, dr)
+    fn depth(&self) -> usize {
+        match self {
+            N(_) => 0,
+            P { l, r } => usize::max(l.depth(), r.depth()) + 1,
+        }
     }
 
     fn push_l(self, n: usize) -> Pair {
         if n == 0 {
             return self;
         }
-        match self.l {
-            N(i) => Pair {
-                l: N(i + n),
-                r: self.r,
-            },
-            P(b) => Pair {
-                l: P(Box::new(b.push_l(n))),
-                r: self.r,
+        match self {
+            N(i) => N(i + n),
+            P { l, r } => P {
+                l: Box::new(l.push_l(n)),
+                r,
             },
         }
     }
@@ -130,175 +88,89 @@ impl Pair {
         if n == 0 {
             return self;
         }
-        match self.r {
-            N(i) => Pair {
-                l: self.l,
-                r: N(i + n),
-            },
-            P(b) => Pair {
-                l: self.l,
-                r: P(Box::new(b.push_r(n))),
+        match self {
+            N(i) => N(i + n),
+            P { l, r } => P {
+                l,
+                r: Box::new(r.push_r(n)),
             },
         }
     }
 
     fn explode(self, depth: usize) -> (usize, Pair, usize) {
-        if let P(ref b) = self.l {
-            if depth == 3 {
-                match &b.l {
-                    N(l) => {
-                        if let N(r) = b.r {
-                            let x = match self.r {
-                                N(my_r) => (
-                                    *l,
-                                    Pair {
-                                        l: N(0),
-                                        r: N(r + my_r),
-                                    },
-                                    0,
-                                ),
-                                P(my_r) => (
-                                    *l,
-                                    Pair {
-                                        l: N(0),
-                                        r: P(Box::new(my_r.push_l(r))),
-                                    },
-                                    0,
-                                ),
-                            };
-                            return x;
-                        }
-                    }
-                    P(x) => panic!("Explode failed {}", x.to_string()),
+        match self {
+            N(i) => (0, N(i), 0),
+            P { l, r } => {
+                if depth == 4 {
+                    (l.magnitude(), N(0), r.magnitude())
+                } else if depth + l.depth() > 3 {
+                    let (pl, p, pr) = l.explode(depth + 1);
+                    (
+                        pl,
+                        P {
+                            l: Box::new(p),
+                            r: Box::new(r.push_l(pr)),
+                        },
+                        0,
+                    )
+                } else if depth + r.depth() > 3 {
+                    let (pl, p, pr) = r.explode(depth + 1);
+                    (
+                        0,
+                        P {
+                            l: Box::new(l.push_r(pl)),
+                            r: Box::new(p),
+                        },
+                        pr,
+                    )
+                } else {
+                    (0, P { l, r }, 0)
                 }
-            } else if depth + b.depth_max() > 3 {
-                let (l, p, r) = b.clone().explode(depth + 1);
-                return (
-                    l,
-                    match self.r {
-                        N(n) => Pair {
-                            l: P(Box::new(p)),
-                            r: N(n + r),
-                        },
-                        P(b) => Pair {
-                            l: P(Box::new(p)),
-                            r: P(Box::new(b.push_l(r))),
-                        },
-                    },
-                    0,
-                );
             }
         }
-        if let P(ref b) = self.r {
-            if depth == 3 {
-                match &b.r {
-                    N(r) => {
-                        if let N(l) = b.l {
-                            return match self.l {
-                                N(my_l) => (
-                                    0,
-                                    Pair {
-                                        l: N(l + my_l),
-                                        r: N(0),
-                                    },
-                                    *r,
-                                ),
-                                P(my_l) => (
-                                    0,
-                                    Pair {
-                                        l: P(Box::new(my_l.push_r(l))),
-                                        r: N(0),
-                                    },
-                                    *r,
-                                ),
-                            };
-                        }
-                    }
-                    P(x) => panic!("Explode failed {}", x.to_string()),
-                }
-            } else if depth + b.depth_max() > 3 {
-                let (l, p, r) = b.clone().explode(depth + 1);
-                return (
-                    0,
-                    match self.l {
-                        N(n) => Pair {
-                            l: N(n + l),
-                            r: P(Box::new(p)),
-                        },
-                        P(b) => Pair {
-                            l: P(Box::new(b.push_r(l))),
-                            r: P(Box::new(p)),
-                        },
-                    },
-                    r,
-                );
-            }
-        }
-        (0, self, 0)
     }
 
     fn need_split(&self) -> bool {
-        let l = match &self.l {
+        match self {
             N(i) => *i > 9,
-            P(b) => b.need_split(),
-        };
-        let r = match &self.r {
-            N(i) => *i > 9,
-            P(b) => b.need_split(),
-        };
-        l || r
+            P { l, r } => l.need_split() || r.need_split(),
+        }
     }
 
     fn split(self) -> Pair {
-        match &self.l {
-            N(l) => {
-                if *l > 9 {
-                    return Pair {
-                        l: P(Box::new(Pair {
-                            l: N(l / 2),
-                            r: N(l / 2 + l % 2),
-                        })),
-                        r: self.r,
-                    };
+        match self {
+            N(i) => {
+                if i > 9 {
+                    P {
+                        l: Box::new(N(i / 2)),
+                        r: Box::new(N(i / 2 + i % 2)),
+                    }
+                } else {
+                    N(i)
                 }
             }
-            P(b) => {
-                if b.need_split() {
-                    return Pair {
-                        l: P(Box::new(b.clone().split())),
-                        r: self.r,
-                    };
-                }
-            }
-        }
-        match &self.r {
-            N(r) => {
-                if *r > 9 {
-                    return Pair {
-                        l: self.l,
-                        r: P(Box::new(Pair {
-                            l: N(r / 2),
-                            r: N(r / 2 + r % 2),
-                        })),
-                    };
-                }
-            }
-            P(b) => {
-                if b.need_split() {
-                    return Pair {
-                        l: self.l,
-                        r: P(Box::new(b.clone().split())),
-                    };
+            P { l, r } => {
+                if l.need_split() {
+                    P {
+                        l: Box::new(l.split()),
+                        r,
+                    }
+                } else if r.need_split() {
+                    P {
+                        l,
+                        r: Box::new(r.split()),
+                    }
+                } else {
+                    P { l, r }
                 }
             }
         }
-        self
     }
 
     fn reduce(self) -> Pair {
         let mut p = self;
         loop {
-            let d = p.depth_max();
+            let d = p.depth();
             if d == 5 {
                 p = p.explode(0).1;
                 continue;
@@ -315,9 +187,9 @@ impl Add for Pair {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        Self {
-            l: P(Box::new(self)),
-            r: P(Box::new(other)),
+        P {
+            l: Box::new(self),
+            r: Box::new(other),
         }
         .reduce()
     }
