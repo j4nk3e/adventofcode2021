@@ -16,10 +16,12 @@ fn main() -> Result<(), Error> {
             match pos {
                 None => {
                     scanners.push(Scanner {
+                        id: scanners.len(),
                         beacons,
                         orientation: Cell::new(0),
                         position: RefCell::new([0, 0, 0]),
                         aligned: Cell::new(false),
+                        miss: RefCell::new(Vec::new()),
                     });
                     break 'scan;
                 }
@@ -27,10 +29,12 @@ fn main() -> Result<(), Error> {
                     let l = l.unwrap();
                     if l.is_empty() {
                         scanners.push(Scanner {
+                            id: scanners.len(),
                             beacons,
                             orientation: Cell::new(0),
                             position: RefCell::new([0, 0, 0]),
                             aligned: Cell::new(false),
+                            miss: RefCell::new(Vec::new()),
                         });
                         break;
                     }
@@ -55,7 +59,10 @@ fn main() -> Result<(), Error> {
             scanners.len()
         );
         for s_origin in scanners.iter().filter(|s| s.aligned.get()) {
-            'scanner: for s in scanners.iter().filter(|s| !s.aligned.get()) {
+            'scanner: for s in scanners
+                .iter()
+                .filter(|s| !s.aligned.get() && !s.miss.borrow().contains(&s_origin.id))
+            {
                 let mut matches: HashSet<usize> = HashSet::new();
                 for (id, origin) in s_origin.distances().iter().enumerate() {
                     for target in s.distances().iter_mut() {
@@ -97,6 +104,7 @@ fn main() -> Result<(), Error> {
                     }
                     panic!("no axis match found",);
                 }
+                s.miss.borrow_mut().push(s_origin.id);
             }
         }
     }
@@ -145,10 +153,12 @@ const AXIS: [[[isize; 3]; 3]; 24] = [
 ];
 
 struct Scanner {
+    id: usize,
     beacons: Vec<[isize; 3]>,
     orientation: Cell<usize>,
     position: RefCell<[isize; 3]>,
     aligned: Cell<bool>,
+    miss: RefCell<Vec<usize>>,
 }
 
 impl Scanner {
