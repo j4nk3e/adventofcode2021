@@ -66,12 +66,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         image = next;
         if !background && algo.contains(&0) {
             background = true;
-        } else if background && algo.contains(&0b111111111) {
+        } else if background && !algo.contains(&0b111111111) {
             background = false;
         }
+        image.retain(|_, v| background != *v);
 
-        // for y in -i * 4..max_y + i * 4 {
-        //     for x in -i * 4..max_x + i * 4 {
+        // for y in -i * 2..max_y + i * 2 {
+        //     for x in -i * 2..max_x + i * 2 {
         //         print!(
         //             "{}",
         //             if *image.get(&(x, y)).unwrap_or_else(|| &background) {
@@ -83,7 +84,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         //     }
         //     println!();
         // }
-        println!("{}", image.iter().filter(|(_, v)| **v).count());
+        println!(
+            "{}: {}",
+            i,
+            image.iter().filter(|(_, v)| **v != background).count()
+        );
     }
     Ok(())
 }
