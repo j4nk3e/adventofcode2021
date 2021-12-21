@@ -33,33 +33,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         for y in -i * 2..max_y + i * 2 {
             for x in -i * 2..max_x + i * 2 {
                 let mut q = 0;
-                if *image.entry((x - 1, y - 1)).or_insert(background) {
-                    q += 1 << 8
-                };
-                if *image.entry((x, y - 1)).or_insert(background) {
-                    q += 1 << 7
-                };
-                if *image.entry((x + 1, y - 1)).or_insert(background) {
-                    q += 1 << 6
-                };
-                if *image.entry((x - 1, y)).or_insert(background) {
-                    q += 1 << 5
-                };
-                if *image.entry((x, y)).or_insert(background) {
-                    q += 1 << 4
-                };
-                if *image.entry((x + 1, y)).or_insert(background) {
-                    q += 1 << 3
-                };
-                if *image.entry((x - 1, y + 1)).or_insert(background) {
-                    q += 1 << 2
-                };
-                if *image.entry((x, y + 1)).or_insert(background) {
-                    q += 1 << 1
-                };
-                if *image.entry((x + 1, y + 1)).or_insert(background) {
-                    q += 1 << 0
-                };
+                let mut shift = 0;
+                for dy in -1..2 {
+                    for dx in -1..2 {
+                        if *image.get(&(x + dx, y + dy)).unwrap_or(&background) {
+                            q |= 1 << shift;
+                        };
+                        shift += 1;
+                    }
+                }
                 next.insert((x, y), algo.contains(&q));
             }
         }
