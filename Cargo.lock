@@ -237,6 +237,9 @@ version = "0.1.0"
 [[package]]
 name = "a25a"
 version = "0.1.0"
+dependencies = [
+ "bitvec",
+]
 
 [[package]]
 name = "aho-corasick"
